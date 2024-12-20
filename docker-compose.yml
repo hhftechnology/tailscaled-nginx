@@ -1,0 +1,61 @@
+services:
+  #-----------------------------------------------------------------------------
+  # Required Environment Variables:
+  # - TS_AUTHKEY: Tailscale authentication key (required only for initial setup/recreation)
+  # - TS_HOSTNAME: Tailscale service hostname
+  # - TS_HOST_FQDN: Fully Qualified Domain Name for Tailscale service
+  #-----------------------------------------------------------------------------
+
+  #-----------------------------------------------------------------------------
+  # Tailscale Sidecar Service
+  # - Manages Tailscale network connectivity
+  # - Handles certificate generation and distribution
+  #-----------------------------------------------------------------------------
+  ts-nginx:
+    image: hhftechnology/tailscale-sidecar:latest
+    container_name: ts-$TS_HOSTNAME
+    restart: unless-stopped
+    hostname: $TS_HOSTNAME
+    environment:
+      - TS_AUTHKEY=$TS_AUTHKEY          # Authentication key for Tailscale
+      - TS_STATE_DIR=/var/lib/tailscale # Directory for Tailscale state
+      - TS_DOMAIN_NAME=$TS_HOST_FQDN    # Domain for certificate generation
+    volumes:
+      - ts-nginx-state:/var/lib/tailscale # Persists Tailscale network state
+      - ts-nginx-certs:/certs             # Shares certificates between services
+      - /dev/net/tun:/dev/net/tun         # Required for VPN functionality
+    cap_add:
+      - net_admin   # Required for network administration
+      - sys_module  # Required for kernel module management
+
+  #-----------------------------------------------------------------------------
+  # NGINX Web Server
+  # - Serves web content over HTTPS
+  # - Uses Tailscale-provided certificates
+  #-----------------------------------------------------------------------------
+  nginx:
+    image: nginx:latest
+    container_name: ts-$TS_HOSTNAME-nginx
+    restart: unless-stopped
+    network_mode: service:ts-nginx      # Uses Tailscale network namespace
+    depends_on:
+      - ts-nginx                        # Ensures Tailscale starts first
+    volumes:
+      - ts-nginx-certs:/certs          # Mounts Tailscale certificates
+      - ./nginx_conf/nginx-template.conf:/etc/nginx/nginx-template.conf:ro  # NGINX config template
+    environment:
+      - TS_HOST_FQDN=${TS_HOST_FQDN}   # Domain name for NGINX configuration
+    entrypoint: [
+      "sh", "-c",
+      # Substitutes environment variables and starts NGINX
+      "envsubst < /etc/nginx/nginx-template.conf > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
+    ]
+
+#-----------------------------------------------------------------------------
+# Persistent Storage
+# - ts-nginx-state: Maintains Tailscale network configuration
+# - ts-nginx-certs: Stores SSL/TLS certificates
+#-----------------------------------------------------------------------------
+volumes:
+  ts-nginx-state:
+  ts-nginx-certs:
