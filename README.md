@@ -1,5 +1,7 @@
 # NGINX with Tailscale Integration: Complete Guide
 
+[![Discuss on the HHF forum](https://img.shields.io/badge/discuss-forum.hhf.technology-5E35B1?logo=discourse&logoColor=white)](https://forum.hhf.technology/c/docker-deploy-tools/tailscaled-nginx)
+
 A production-ready Docker Compose implementation demonstrating secure NGINX deployment within a Tailscale network. This setup provides automated SSL certificate management, dynamic configuration, and secure networking capabilities through a custom Tailscale sidecar container.
 
 [![Docker Compose](https://img.shields.io/badge/Docker%20Compose-supported-blue)](https://docs.docker.com/compose/)
